@@ -1,0 +1,339 @@
+npx capacitor add android<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mascotinder - MVP Básico</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        header {
+            width: 100%;
+            background-color: #ff5864; /* Rojo Tinder */
+            color: white;
+            padding: 15px 0;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #app-container {
+            width: 90%;
+            max-width: 400px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        /* Estilos de las VISTAS/COMPONENTES */
+        .view {
+            display: none; /* Ocultar todas las vistas por defecto */
+            padding: 10px;
+        }
+        .view.active {
+            display: block;
+        }
+        /* Estilos de Login */
+        .login-form input, .login-form button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+        }
+        .login-form button {
+            background-color: #ff5864;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        .login-form button:hover {
+            background-color: #e54d58;
+        }
+        /* Estilos de Card (Swipe) */
+        .card-container {
+            height: 300px;
+            border: 2px solid #ff5864;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 1.2em;
+            background-color: #ffe0e2;
+        }
+        .actions button {
+            padding: 15px 20px;
+            font-size: 1.5em;
+            margin: 10px 15px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #dislike-btn { background-color: #ccc; color: #666; }
+        #like-btn { background-color: #00ff80; color: white; }
+        .actions button:hover { transform: scale(1.1); }
+
+        /* Estilos de Matches */
+        #match-list {
+            list-style: none;
+            padding: 0;
+        }
+        #match-list li {
+            padding: 10px;
+            margin-bottom: 8px;
+            background-color: #f7f7f7;
+            border-radius: 5px;
+            border-left: 5px solid #ff5864;
+            font-weight: bold;
+        }
+
+        /* Navegación */
+        nav {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        nav button {
+            background: none;
+            border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 1em;
+            color: #ff5864;
+            border-bottom: 2px solid transparent;
+        }
+        nav button.active {
+            border-bottom: 2px solid #ff5864;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🐾 Mascotinder MVP</h1>
+    </header>
+
+    <div id="app-container">
+        
+        <nav id="main-nav" style="display: none;">
+            <button data-view="swipe-view" class="active">Explorar</button>
+            <button data-view="matches-view">Matches</button>
+            <button id="logout-btn">Salir</button>
+        </nav>
+
+        <div id="login-view" class="view active">
+            <h2>👋 Bienvenido</h2>
+            <p>Ingresa tu correo para empezar (simulado)</p>
+            <div class="login-form">
+                <input type="email" id="user-email" placeholder="ejemplo@correo.com" required>
+                <button id="start-app-btn">Empezar</button>
+                <p id="login-message" style="color:red;"></p>
+            </div>
+        </div>
+
+        <div id="swipe-view" class="view">
+            <h2>Busca tu mejor amigo</h2>
+            <div id="card-area" class="card-container">
+                <p>Cargando perfiles...</p>
+            </div>
+
+            <div class="actions">
+                <button id="dislike-btn">❌</button>
+                <button id="like-btn">❤️</button>
+            </div>
+        </div>
+
+        <div id="matches-view" class="view">
+            <h2>Tus Matches</h2>
+            <ul id="match-list">
+                <li>Aún no tienes matches. ¡Ve a Explorar!</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        // -----------------------------------------------------
+        // I. ESTRUCTURA DE LA APLICACIÓN (SIMULACIÓN SPA)
+        // -----------------------------------------------------
+        const views = document.querySelectorAll('.view');
+        const nav = document.getElementById('main-nav');
+        let isAuthenticated = false;
+
+        // Función central para cambiar de vista (como un router simple)
+        function navigateTo(viewId) {
+            views.forEach(view => {
+                view.classList.remove('active');
+            });
+            document.getElementById(viewId).classList.add('active');
+            
+            // Ocultar/Mostrar navegación según la vista
+            nav.style.display = (viewId !== 'login-view' && isAuthenticated) ? 'flex' : 'none';
+            
+            // Si vamos a la vista de matches, la actualizamos
+            if (viewId === 'matches-view') {
+                renderMatches();
+            }
+        }
+
+        // -----------------------------------------------------
+        // II. AUTENTICACIÓN (LOGIN SIMULADO)
+        // -----------------------------------------------------
+        const startAppBtn = document.getElementById('start-app-btn');
+        const userEmailInput = document.getElementById('user-email');
+        const loginMessage = document.getElementById('login-message');
+
+        startAppBtn.addEventListener('click', () => {
+            const email = userEmailInput.value;
+            if (email && email.includes('@') && email.includes('.')) {
+                // Simulación de éxito de Login
+                isAuthenticated = true;
+                localStorage.setItem('user_auth', 'true');
+                loginMessage.textContent = '';
+                // Simular ir a la vista principal
+                navigateTo('swipe-view');
+            } else {
+                loginMessage.textContent = 'Por favor, introduce un email válido (solo simulación).';
+            }
+        });
+
+        // Manejar Logout
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            isAuthenticated = false;
+            localStorage.removeItem('user_auth');
+            petsData.currentPetIndex = 0; // Resetear el índice
+            navigateTo('login-view');
+            alert('Has cerrado sesión.');
+        });
+        
+        // -----------------------------------------------------
+        // III. LÓGICA DEL SWIPE Y DATOS
+        // -----------------------------------------------------
+        const petsData = {
+            list: [
+                { id: 1, name: "Max", species: "Perro", age: 3, breed: "Labrador" },
+                { id: 2, name: "Luna", species: "Gato", age: 1, breed: "Siamés" },
+                { id: 3, name: "Rocky", species: "Loro", age: 5, breed: "Yaco" },
+                { id: 4, name: "Kira", species: "Conejo", age: 2, breed: "Holland Lop" }
+            ],
+            currentPetIndex: 0
+        };
+
+        const cardArea = document.getElementById('card-area');
+        const likeBtn = document.getElementById('like-btn');
+        const dislikeBtn = document.getElementById('dislike-btn');
+        
+        // Cargar "matches" anteriores del navegador
+        let matches = JSON.parse(localStorage.getItem('mascotinder_matches')) || [];
+
+        function createCard(pet) {
+            return `
+                <div class="pet-card">
+                    <h3>${pet.name}, ${pet.age} años</h3>
+                    <p>Especie: ${pet.species}</p>
+                    <p>Raza: ${pet.breed}</p>
+                    <p>(Sin foto por ser MVP)</p>
+                </div>
+            `;
+        }
+
+        function renderCurrentCard() {
+            likeBtn.style.display = 'block';
+            dislikeBtn.style.display = 'block';
+
+            if (petsData.currentPetIndex < petsData.list.length) {
+                const pet = petsData.list[petsData.currentPetIndex];
+                cardArea.innerHTML = createCard(pet);
+            } else {
+                cardArea.innerHTML = '<h3>¡Has visto todos los perfiles de hoy!</h3>';
+                likeBtn.style.display = 'none';
+                dislikeBtn.style.display = 'none';
+            }
+        }
+
+        function handleSwipe(isLiked) {
+            if (petsData.currentPetIndex >= petsData.list.length) return;
+
+            const currentPet = petsData.list[petsData.currentPetIndex];
+
+            if (isLiked) {
+                matches.push(currentPet);
+                localStorage.setItem('mascotinder_matches', JSON.stringify(matches));
+                console.log(`¡Match con ${currentPet.name}!`);
+                alert(`¡🎉 Match con ${currentPet.name}!`);
+            } else {
+                console.log(`Paso con ${currentPet.name}`);
+            }
+
+            // Pasar a la siguiente tarjeta
+            petsData.currentPetIndex++;
+            renderCurrentCard();
+        }
+
+        // Asignar eventos de Swipe
+        likeBtn.addEventListener('click', () => handleSwipe(true));
+        dislikeBtn.addEventListener('click', () => handleSwipe(false));
+
+        // -----------------------------------------------------
+        // IV. LÓGICA DE MATCHES
+        // -----------------------------------------------------
+        const matchList = document.getElementById('match-list');
+
+        function renderMatches() {
+            matches = JSON.parse(localStorage.getItem('mascotinder_matches')) || []; // Recargar
+            matchList.innerHTML = ''; // Limpiar lista
+
+            if (matches.length === 0) {
+                matchList.innerHTML = '<li>Aún no tienes matches. ¡Dale a "Sí" a una mascota!</li>';
+            } else {
+                matches.forEach(pet => {
+                    const li = document.createElement('li');
+                    li.textContent = `${pet.name} (${pet.species}, ${pet.age} años) - ¡Listo para contactar!`;
+                    matchList.appendChild(li);
+                });
+            }
+        }
+
+        // -----------------------------------------------------
+        // V. INICIALIZACIÓN
+        // -----------------------------------------------------
+        document.addEventListener('DOMContentLoaded', () => {
+            // Verificar si el usuario ya "inició sesión" (simulado)
+            if (localStorage.getItem('user_auth') === 'true') {
+                isAuthenticated = true;
+                navigateTo('swipe-view');
+                renderCurrentCard();
+            } else {
+                navigateTo('login-view');
+            }
+
+            // Eventos de Navegación (Tabs)
+            document.querySelectorAll('#main-nav button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const viewId = e.target.getAttribute('data-view');
+                    if (viewId) {
+                        // Limpiar el estado activo de los botones de navegación
+                        document.querySelectorAll('#main-nav button').forEach(btn => btn.classList.remove('active'));
+                        e.target.classList.add('active');
+                        navigateTo(viewId);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
