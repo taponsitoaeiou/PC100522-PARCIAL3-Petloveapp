@@ -42,9 +42,9 @@ Prepárate para una experiencia única en la que tu mascota podrá encontrar a s
 
 ## 🧑‍💻 Autor
 
-**Salvador Cáceres**  
+**Taponsito AEIOU**  
 Desarrollador apasionado por la innovación y el mundo animal.  
-📧 salvador@example.com
+📧 taponsitoaeiou@gmail.com
 
 ---
 
